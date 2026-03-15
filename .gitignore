@@ -1,10 +1,16 @@
-# MacOS
-.DS_Store
-
-# Python
+# Python cache
 __pycache__/
 *.pyc
+
+# Virtual environment
 venv/
 
-# Data outputs
+# Generated outputs
 outputs/
+
+# Mac system files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
