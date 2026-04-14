@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from backend.app.api import analysis
-from backend.app.services.ai_agent import run_agent
+from app.api import analysis
+from app.services.ai_agent import run_agent
 
 app = FastAPI()
 
