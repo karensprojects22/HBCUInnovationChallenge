@@ -1,10 +1,23 @@
 from fastapi import FastAPI
-from app.api.analysis import router as analysis_router
+from backend.app.api import analysis
+from backend.app.services.ai_agent import run_agent
 
 app = FastAPI()
 
-app.include_router(analysis_router, prefix="/api")
+# Existing demo route
+app.include_router(analysis.router, prefix="/api")
+
+
+# AI AGENT ENDPOINT (NEW — CORE DEMO)
+@app.get("/agent")
+async def agent_endpoint(query: str):
+    result = await run_agent(query)
+    return {
+        "query": query,
+        "agent_response": result
+    }
+
 
 @app.get("/")
 def root():
-    return {"message": "Backend is running"}
+    return {"status": "ATHLETIQ backend running"}
