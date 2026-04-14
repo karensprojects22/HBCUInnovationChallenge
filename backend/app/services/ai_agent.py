@@ -1,19 +1,20 @@
-#ATHLETIQ AI AGENT (DEMO SAFE VERSION)
+# ATHLETIQ AI agent (demo-safe version)
 
 
 import httpx
 import json
 
-# Optional local LLM (Ollama)
+# Local development model. This follows the DSU workshop pattern:
+# FastAPI exposes an endpoint and Ollama serves the Llama-family model locally.
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL = "llama3"
 
 
-# TOOL: get biomechanical risk data
+# Tool 1 in the agent loop: fetch the latest motion-analysis summary from FastAPI.
 
 async def get_risk_analysis():
     """
-    Calls your FastAPI backend demo endpoint
+    Calls the local FastAPI backend for structured risk data the agent can reason over.
     """
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
@@ -30,11 +31,14 @@ async def get_risk_analysis():
             }
 
 
-# AI AGENT CORE
+# Core agent entry point. Right now this is a lightweight one-step pattern rather than a
+# full multi-tool ReAct loop, but the structure is intentionally compatible with that direction.
 
 async def run_agent(user_query: str):
     analysis = await get_risk_analysis()
 
+    # The system prompt gives the model the same structured context a future tool-calling
+    # agent would use: current data, user question, and the action we want from the model.
     system_prompt = f"""
 You are an elite sports biomechanics AI coach.
 
@@ -53,7 +57,7 @@ TASK:
 """
 
     
-    # TRY REAL LLM (OLLAMA)
+    # Try the real local LLM first so the demo reflects the DSU workshop architecture.
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -76,7 +80,7 @@ TASK:
             }
 
     
-    # FALLBACK (GUARANTEED DEMO SAFE)
+    # Guaranteed fallback keeps the coach panel functional if Ollama is offline.
     
     except Exception:
         risk = analysis.get("peak_risk_score", 0)
