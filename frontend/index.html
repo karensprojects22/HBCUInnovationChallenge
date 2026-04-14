@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATHLETIQ | AI Injury Prevention Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(10, 20, 38, 0.84);
+      --panel-strong: rgba(13, 24, 46, 0.96);
+      --border: rgba(148, 163, 184, 0.16);
+      --text: #eff6ff;
+      --muted: #94a3b8;
+      --blue: #38bdf8;
+      --cyan: #22d3ee;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Avenir Next, Segoe UI, Helvetica Neue, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(52, 211, 153, 0.14), transparent 22%),
+        linear-gradient(180deg, #020817 0%, #07111f 42%, #020617 100%);
+    }
+
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 28px 80px rgba(2, 6, 23, 0.34);
+      backdrop-filter: blur(16px);
+    }
+
+    .panel-strong {
+      background: var(--panel-strong);
+    }
+
+    .gradient-text {
+      background: linear-gradient(120deg, #f8fafc 0%, #67e8f9 36%, #34d399 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .eyebrow {
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      background: rgba(14, 165, 233, 0.1);
+      color: #bae6fd;
+    }
+
+    .hero-grid {
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .upload-zone {
+      border: 1.5px dashed rgba(125, 211, 252, 0.35);
+      background: linear-gradient(180deg, rgba(14, 116, 144, 0.12), rgba(7, 17, 31, 0.36));
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: rgba(56, 189, 248, 0.85);
+      transform: translateY(-1px);
+      background: linear-gradient(180deg, rgba(14, 165, 233, 0.16), rgba(7, 17, 31, 0.48));
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.36rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tag-high {
+      color: #fecdd3;
+      background: rgba(244, 63, 94, 0.14);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+
+    .tag-moderate {
+      color: #fde68a;
+      background: rgba(251, 191, 36, 0.14);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+
+    .tag-low {
+      color: #a7f3d0;
+      background: rgba(52, 211, 153, 0.14);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 26%);
+      pointer-events: none;
+    }
+
+    .gauge-ring {
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--green) 0deg, rgba(15, 23, 42, 0.88) 0deg);
+      transition: background 0.6s ease;
+      box-shadow: inset 0 0 30px rgba(2, 6, 23, 0.4);
+    }
+
+    .gauge-core {
+      width: 152px;
+      height: 152px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.98));
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    .fade-up {
+      animation: fadeUp 0.55s ease both;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 767px) {
+      .gauge-ring {
+        width: 190px;
+        height: 190px;
+      }
+
+      .gauge-core {
+        width: 132px;
+        height: 132px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="sticky top-0 z-50 border-b border-white/10 bg-slate-950/78 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-4 lg:px-8">
+      <div class="flex items-center gap-3">
+        <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 via-cyan-300 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M13 2L3 14h8l-1 8 11-13h-8l1-7z"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-lg font-semibold tracking-wide gradient-text">ATHLETIQ</p>
+          <p class="text-xs uppercase tracking-[0.28em] text-slate-500">A&amp;R Labs</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+        <span class="tag tag-low" id="backendStatus">Backend checking</span>
+        <span class="hidden rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400 md:inline-flex">DSU Final Round Demo</span>
+        <a href="#demoWorkspace" class="rounded-full border border-sky-400/30 px-4 py-2 font-medium text-sky-200 transition hover:border-sky-300 hover:bg-sky-400/10">Open demo console</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero-grid relative overflow-hidden">
+      <div class="mx-auto grid max-w-7xl gap-12 px-5 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+        <div class="relative">
+          <span class="eyebrow inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em]">Patent-backed biomechanics x AI injury prevention</span>
+          <h1 class="mt-6 max-w-4xl text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
+            Real-time athlete risk intelligence for teams that cannot afford a sports science lab.
+          </h1>
+          <p class="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+            ATHLETIQ combines camera-based pose capture, Delaware State University's patented neuromuscular analysis,
+            and an AI athlete digital twin to flag injury risk before it becomes missed time.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3">
+            <button onclick="runDemo()" class="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:opacity-90">Run investor demo</button>
+            <a href="#systemOverview" class="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-white/30 hover:bg-white/5">See system layers</a>
+          </div>
+          <div class="mt-8 grid gap-4 sm:grid-cols-3">
+            <div class="glass rounded-3xl p-4">
+              <p class="text-2xl font-semibold text-sky-300">&lt;2s</p>
+              <p class="mt-2 text-sm text-slate-400">Detection latency for live decision support</p>
+            </div>
+            <div class="glass rounded-3xl p-4">
+              <p class="text-2xl font-semibold text-emerald-300">94%</p>
+              <p class="mt-2 text-sm text-slate-400">Reported model accuracy on the CalPhrase protocol</p>
+            </div>
+            <div class="glass rounded-3xl p-4">
+              <p class="text-2xl font-semibold text-cyan-300">4 Layers</p>
+              <p class="mt-2 text-sm text-slate-400">Capture, patent engine, digital twin, backend intelligence</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass panel-strong rounded-[2rem] p-6 sm:p-7">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-sm uppercase tracking-[0.22em] text-slate-500">Pitch narrative</p>
+              <h2 class="mt-2 text-2xl font-semibold text-white">What investors should understand in 30 seconds</h2>
+            </div>
+            <span class="tag tag-low">Live-ready</span>
+          </div>
+          <div class="mt-6 space-y-4 text-sm leading-6 text-slate-300">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">Problem</p>
+              <p class="mt-1">Lower-body injuries are common, expensive, and often detected too late for athletes outside elite programs.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">Solution</p>
+              <p class="mt-1">ATHLETIQ turns standard video and wearable signals into biomechanical risk scores, coach-facing alerts, and plain-English guidance.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">Why now</p>
+              <p class="mt-1">Computer vision is finally cheap enough to scale, and DSU's patent gives your team a differentiated scientific layer beyond pose detection alone.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="systemOverview" class="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+      <div class="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <p class="text-sm uppercase tracking-[0.28em] text-slate-500">System overview</p>
+          <h2 class="mt-2 text-3xl font-semibold text-white">Four layers of the ATHLETIQ platform</h2>
+        </div>
+        <p class="max-w-xl text-sm leading-6 text-slate-400">This gives you a clean story on stage: capture the athlete, apply the patent, generate a digital twin, and deliver decisions through the backend dashboard.</p>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="glass rounded-[1.75rem] p-5">
+          <p class="text-xs uppercase tracking-[0.22em] text-sky-300">Layer 1</p>
+          <h3 class="mt-2 text-xl font-semibold text-white">Capture</h3>
+          <ul class="mt-4 space-y-2 text-sm text-slate-300">
+            <li>Apple Vision Pro body tracking</li>
+            <li>Apple Watch IMU + HealthKit</li>
+            <li>YOLO pose fallback from standard camera video</li>
+          </ul>
+        </article>
+        <article class="glass rounded-[1.75rem] p-5">
+          <p class="text-xs uppercase tracking-[0.22em] text-cyan-300">Layer 2</p>
+          <h3 class="mt-2 text-xl font-semibold text-white">DSU Patent Engine</h3>
+          <ul class="mt-4 space-y-2 text-sm text-slate-300">
+            <li>Muscle activity correlation</li>
+            <li>Ground reaction force and ankle torque vectors</li>
+            <li>Joint displacement and stability score</li>
+          </ul>
+        </article>
+        <article class="glass rounded-[1.75rem] p-5">
+          <p class="text-xs uppercase tracking-[0.22em] text-emerald-300">Layer 3</p>
+          <h3 class="mt-2 text-xl font-semibold text-white">AI Athlete Digital Twin</h3>
+          <ul class="mt-4 space-y-2 text-sm text-slate-300">
+            <li>Personalized baseline model</li>
+            <li>Fatigue pattern learning</li>
+            <li>Predictive what-if simulations</li>
+          </ul>
+        </article>
+        <article class="glass rounded-[1.75rem] p-5">
+          <p class="text-xs uppercase tracking-[0.22em] text-amber-300">Layer 4</p>
+          <h3 class="mt-2 text-xl font-semibold text-white">Backend Intelligence</h3>
+          <ul class="mt-4 space-y-2 text-sm text-slate-300">
+            <li>FastAPI endpoints and profile store</li>
+            <li>Baseline divergence engine</li>
+            <li>AI coach integration for plain-English insight</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="demoWorkspace" class="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+      <div class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div class="glass rounded-[2rem] p-6 sm:p-7">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Demo console</p>
+              <h2 class="mt-2 text-2xl font-semibold text-white">Analyze athlete movement</h2>
+            </div>
+            <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Use the live demo if the backend is warming up</span>
+          </div>
+
+          <div class="mt-5 rounded-[1.6rem] border border-white/10 bg-slate-950/40 p-4">
+            <label for="apiBaseInput" class="text-xs uppercase tracking-[0.22em] text-slate-500">Backend URL</label>
+            <div class="mt-2 flex flex-col gap-3 sm:flex-row">
+              <input id="apiBaseInput" type="text" class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-500" placeholder="http://127.0.0.1:8000" />
+              <button onclick="saveApiBase()" class="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300">Save URL</button>
+            </div>
+          </div>
+
+          <div id="dropZone" class="upload-zone mt-5 rounded-[1.8rem] p-8 text-center" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
+            <div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-white/10 bg-white/5">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="1.8">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <p id="fileLabel" class="mt-4 text-base font-medium text-white">Drop a movement video here or click to browse</p>
+            <p class="mt-2 text-sm text-slate-400">Supports demo uploads with MP4, MOV, and AVI files.</p>
+            <input id="fileInput" type="file" accept="video/*" class="hidden" onchange="handleFileSelect(this)" />
+          </div>
+
+          <div class="mt-5 grid gap-3 sm:grid-cols-2">
+            <button id="demoBtn" onclick="runDemo()" class="rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:opacity-90">Run live demo dataset</button>
+            <button id="analyzeBtn" onclick="analyzeUpload()" class="rounded-2xl border border-sky-300/20 bg-sky-400/10 px-5 py-4 text-sm font-semibold text-sky-100 transition hover:border-sky-300/40 hover:bg-sky-400/16">Analyze uploaded video</button>
+          </div>
+
+          <div id="progressSection" class="mt-5 hidden rounded-[1.4rem] border border-white/10 bg-slate-950/45 p-4">
+            <div class="mb-3 flex items-center justify-between gap-3 text-sm">
+              <span id="progressLabel" class="text-slate-300">Processing...</span>
+              <span id="progressPct" class="font-semibold text-white">0%</span>
+            </div>
+            <div class="h-2 rounded-full bg-slate-800">
+              <div id="progressBar" class="h-2 rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-400 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="glass rounded-[2rem] p-6 sm:p-7">
+          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Stage notes</p>
+          <h2 class="mt-2 text-2xl font-semibold text-white">Suggested live demo flow</h2>
+          <div class="mt-5 space-y-4 text-sm leading-6 text-slate-300">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">1. Start with access</p>
+              <p class="mt-1">Lead with the equity story: standard camera video, no force plates, no elite-lab requirement.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">2. Show the patented layer</p>
+              <p class="mt-1">Explain that pose data alone is not enough; the DSU patent translates motion into biomechanical meaning.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">3. Land on actionability</p>
+              <p class="mt-1">Point to the risk gauge, asymmetry bars, and AI report to show how a coach actually uses the product.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="font-semibold text-white">4. Close on platform vision</p>
+              <p class="mt-1">Move from YOLO-based MVP to Apple Vision Pro + wearables + digital twin as the scalable research engine.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="resultsSection" class="mx-auto hidden max-w-7xl px-5 pb-16 lg:px-8">
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Analysis output</p>
+          <h2 class="mt-2 text-3xl font-semibold text-white">Coach-facing risk dashboard</h2>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <span id="resultSource" class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Source: waiting</span>
+          <span id="resultAlertPill" class="tag tag-low">LOW</span>
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="glass metric-card relative overflow-hidden rounded-[1.8rem] p-5 fade-up">
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Peak risk</p>
+          <p id="peakRisk" class="mt-3 text-5xl font-semibold text-white">--</p>
+          <p class="mt-2 text-sm text-slate-400">Maximum predicted risk during this session</p>
+        </article>
+        <article class="glass metric-card relative overflow-hidden rounded-[1.8rem] p-5 fade-up">
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Average risk</p>
+          <p id="avgRisk" class="mt-3 text-5xl font-semibold text-white">--</p>
+          <p class="mt-2 text-sm text-slate-400">Average load across the analyzed frames</p>
+        </article>
+        <article class="glass metric-card relative overflow-hidden rounded-[1.8rem] p-5 fade-up">
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-500">High-risk frames</p>
+          <p id="highFrames" class="mt-3 text-5xl font-semibold text-white">--</p>
+          <p class="mt-2 text-sm text-slate-400">Moments recommended for coach review</p>
+        </article>
+        <article class="glass metric-card relative overflow-hidden rounded-[1.8rem] p-5 fade-up">
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Frames analyzed</p>
+          <p id="framesAnalyzed" class="mt-3 text-5xl font-semibold text-white">--</p>
+          <p class="mt-2 text-sm text-slate-400">Signal density in this movement sample</p>
+        </article>
+      </div>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <article class="glass rounded-[2rem] p-6 fade-up">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Risk score</p>
+              <h3 class="mt-2 text-2xl font-semibold text-white">Session gauge</h3>
+            </div>
+            <span id="alertBadge" class="tag tag-low">LOW</span>
+          </div>
+          <div class="mt-6 flex justify-center">
+            <div id="gaugeRing" class="gauge-ring">
+              <div class="gauge-core">
+                <div>
+                  <p id="gaugeValue" class="text-4xl font-semibold text-white">0</p>
+                  <p class="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">Out of 100</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Primary signal</p>
+              <p id="primaryDriver" class="mt-2 font-semibold text-white">Fatigue onset</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Coach action</p>
+              <p id="coachAction" class="mt-2 font-semibold text-white">Monitor</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Workload scenario</p>
+              <p id="simulationCallout" class="mt-2 font-semibold text-white">Sprint volume +20% could elevate hamstring risk</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="glass rounded-[2rem] p-6 fade-up">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Risk over time</p>
+              <h3 class="mt-2 text-2xl font-semibold text-white">Timeline and digital twin</h3>
+            </div>
+            <span class="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">Real-time style playback</span>
+          </div>
+          <div class="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="rounded-[1.5rem] border border-white/10 bg-slate-950/50 p-4">
+              <canvas id="riskChart" height="185"></canvas>
+            </div>
+            <div class="rounded-[1.5rem] border border-white/10 bg-slate-950/50 p-4">
+              <canvas id="skeletonCanvas" width="300" height="330" class="mx-auto block max-w-full"></canvas>
+              <div class="mt-4 flex justify-center gap-4 text-xs text-slate-400">
+                <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Stable</span>
+                <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-amber-300"></span>Moderate</span>
+                <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-rose-400"></span>High</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <article class="glass rounded-[2rem] p-6 fade-up">
+          <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Joint load analysis</p>
+          <h3 class="mt-2 text-2xl font-semibold text-white">Muscle and asymmetry indicators</h3>
+          <div id="jointBars" class="mt-6 space-y-5"></div>
+        </article>
+
+        <article class="glass rounded-[2rem] p-6 fade-up">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-sm uppercase tracking-[0.24em] text-slate-500">AI report</p>
+              <h3 class="mt-2 text-2xl font-semibold text-white">Plain-English insight</h3>
+            </div>
+            <span class="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">Generated summary</span>
+          </div>
+          <p id="aiReport" class="mt-5 text-sm leading-7 text-slate-300">Run the analysis to generate the coach summary.</p>
+
+          <div class="mt-6 rounded-[1.5rem] border border-white/10 bg-slate-950/45 p-4">
+            <label for="agentQuestion" class="text-xs uppercase tracking-[0.22em] text-slate-500">Ask the AI coach</label>
+            <div class="mt-3 flex flex-col gap-3">
+              <textarea id="agentQuestion" rows="3" class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500" placeholder="Example: What should the trainer do before the next sprint session?"></textarea>
+              <div class="flex flex-wrap gap-3">
+                <button onclick="askAgent()" class="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300">Ask coach</button>
+                <span id="agentStatus" class="self-center text-sm text-slate-400">Uses the `/agent` endpoint when available.</span>
+              </div>
+              <div id="agentResponse" class="hidden rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-300"></div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="glass mt-6 rounded-[2rem] p-6 fade-up">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">Frame review</p>
+            <h3 class="mt-2 text-2xl font-semibold text-white">Frame-by-frame detail for the judges</h3>
+          </div>
+          <p class="text-sm text-slate-400">Desktop view shows a table, while mobile condenses the same frames into stacked cards.</p>
+        </div>
+        <div id="frameDesktop" class="mt-5 hidden overflow-x-auto md:block">
+          <table class="min-w-full text-left text-sm">
+            <thead class="border-b border-white/10 text-xs uppercase tracking-[0.2em] text-slate-500">
+              <tr>
+                <th class="pb-3 pr-4">Frame</th>
+                <th class="pb-3 pr-4">Rep</th>
+                <th class="pb-3 pr-4">Left knee</th>
+                <th class="pb-3 pr-4">Right knee</th>
+                <th class="pb-3 pr-4">Asymmetry</th>
+                <th class="pb-3 pr-4">GRF left</th>
+                <th class="pb-3 pr-4">Risk</th>
+                <th class="pb-3">Alert</th>
+              </tr>
+            </thead>
+            <tbody id="frameTable" class="divide-y divide-white/5"></tbody>
+          </table>
+        </div>
+        <div id="frameMobile" class="mt-5 space-y-3 md:hidden"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="border-t border-white/10 px-5 py-8 text-center text-xs text-slate-500">
+    ATHLETIQ · A&amp;R Labs · Delaware State University · Patent WO 2023/158438 A1
+  </footer>
+
+  <script>
+    // Front-end state for the live demo dashboard.
+    let uploadedFile = null;
+    let riskChartInstance = null;
+    let animationTimer = null;
+    let frameData = [];
+    let currentFrame = 0;
+    const DEFAULT_API_BASE = "http://127.0.0.1:8000";
+
+    function inferDefaultApiBase() {
+      // When the dashboard is served by FastAPI, use same-origin requests automatically.
+      if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+        return window.location.origin;
+      }
+      return DEFAULT_API_BASE;
+    }
+
+    function getApiBase() {
+      // Persisting the API base makes it easy to switch between local demo and deployed backend.
+      return localStorage.getItem("athletiqApiBase") || inferDefaultApiBase();
+    }
+
+    function saveApiBase() {
+      const input = document.getElementById("apiBaseInput");
+      const value = (input.value || "").trim() || inferDefaultApiBase();
+      localStorage.setItem("athletiqApiBase", value.replace(/\/$/, ""));
+      checkBackend();
+    }
+
+    function setBackendBadge(text, type) {
+      // Presenter-friendly status badge for tech-checks before the live pitch.
+      const badge = document.getElementById("backendStatus");
+      badge.textContent = text;
+      badge.className = "tag " + (type === "high" ? "tag-high" : type === "moderate" ? "tag-moderate" : "tag-low");
+    }
+
+    async function checkBackend() {
+      // Simple health-check so the presenter immediately knows whether the local API is live.
+      document.getElementById("apiBaseInput").value = getApiBase();
+      try {
+        const response = await fetch(getApiBase() + "/health", { method: "GET" });
+        if (!response.ok) {
+          throw new Error("Backend unreachable");
+        }
+        setBackendBadge("Backend online", "low");
+      } catch (error) {
+        setBackendBadge("Demo fallback mode", "moderate");
+      }
+    }
+
+    function handleFileSelect(input) {
+      uploadedFile = input.files && input.files[0] ? input.files[0] : null;
+      updateFileLabel();
+    }
+
+    function handleDrop(event) {
+      event.preventDefault();
+      document.getElementById("dropZone").classList.remove("drag-over");
+      const file = event.dataTransfer.files[0];
+      if (file && file.type.startsWith("video/")) {
+        uploadedFile = file;
+        updateFileLabel();
+      }
+    }
+
+    function updateFileLabel() {
+      const label = document.getElementById("fileLabel");
+      if (!uploadedFile) {
+        label.textContent = "Drop a movement video here or click to browse";
+        return;
+      }
+      label.textContent = uploadedFile.name;
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function average(values) {
+      return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+    }
+
+    function alertClassName(alert) {
+      if (alert === "HIGH") return "tag-high";
+      if (alert === "MODERATE") return "tag-moderate";
+      return "tag-low";
+    }
+
+    function riskColor(score) {
+      if (score >= 65) return "#fb7185";
+      if (score >= 40) return "#fbbf24";
+      return "#34d399";
+    }
+
+    function generateSyntheticData() {
+      // Demo fallback that mimics the eventual YOLO + biomechanical output contract.
+      const frames = [];
+      const reps = 10;
+      const framesPerRep = 20;
+      const fatigueOnset = 6;
+
+      for (let rep = 0; rep < reps; rep += 1) {
+        for (let step = 0; step < framesPerRep; step += 1) {
+          const phase = step / framesPerRep;
+          const depth = Math.sin(Math.PI * phase);
+          const fatigue = Math.max(0, (rep - fatigueOnset) / Math.max(reps - fatigueOnset, 1));
+          const leftEmg = Math.min(0.3 + 0.65 * depth, 1.0);
+          const rightEmg = Math.min(leftEmg + 0.08 + fatigue * 0.08 + (Math.random() - 0.5) * 0.03, 1.0);
+          const asymmetryRaw = Math.abs(leftEmg - rightEmg) / Math.max(leftEmg + rightEmg, 0.001);
+          const riskScore = Math.min((fatigue * 42) + (asymmetryRaw * 38) + (rightEmg * 25), 100);
+          const leftKnee = Math.round((170 - depth * 60 + (Math.random() - 0.5) * 3) * 10) / 10;
+          const rightKnee = Math.round((170 - depth * 56 + fatigue * 8 + (Math.random() - 0.5) * 3) * 10) / 10;
+
+          frames.push({
+            frame: rep * framesPerRep + step + 1,
+            rep: rep + 1,
+            left_knee_angle: leftKnee,
+            right_knee_angle: rightKnee,
+            angle_difference: Math.round(Math.abs(leftKnee - rightKnee) * 10) / 10,
+            emg_left: Math.round(leftEmg * 1000) / 1000,
+            emg_right: Math.round(rightEmg * 1000) / 1000,
+            asymmetry: Math.round(asymmetryRaw * 1000) / 10,
+            fatigue: Math.round(fatigue * 1000) / 1000,
+            risk_score: Math.round(riskScore * 10) / 10,
+            alert: riskScore >= 65 ? "HIGH" : riskScore >= 40 ? "MODERATE" : "LOW",
+            grf_left: Math.round(leftEmg * 80 * 9.81 * 100) / 100,
+            grf_right: Math.round(rightEmg * 80 * 9.81 * 100) / 100
+          });
+        }
+      }
+
+      const riskScores = frames.map((frame) => frame.risk_score);
+      const peak = Math.max(...riskScores);
+      const averageRisk = Math.round(average(riskScores) * 10) / 10;
+      const highRiskFrameCount = frames.filter((frame) => frame.alert === "HIGH").length;
+      const alertLevel = peak >= 65 ? "HIGH" : peak >= 40 ? "MODERATE" : "LOW";
+
+      return {
+        source: "synthetic demo",
+        peak_risk_score: peak,
+        average_risk_score: averageRisk,
+        alert_level: alertLevel,
+        high_risk_frame_count: highRiskFrameCount,
+        total_frames_analyzed: frames.length,
+        frame_data: frames,
+        ai_report: generateReport(peak, averageRisk, alertLevel, highRiskFrameCount, frames.length)
+      };
+    }
+
+    function generateReport(peak, averageRisk, alertLevel, highRiskFrames, totalFrames) {
+      const flaggedPercent = Math.round((highRiskFrames / Math.max(totalFrames, 1)) * 100);
+      if (alertLevel === "HIGH") {
+        return "ATHLETIQ detected a high-risk movement pattern driven by fatigue accumulation and left-right loading asymmetry. Coaches should reduce session volume, emphasize unilateral stability work, and repeat screening before the next full-speed workload.";
+      }
+      if (alertLevel === "MODERATE") {
+        return "ATHLETIQ detected emerging compensation patterns that could become an overuse issue if workload increases too quickly. Targeted glute activation, landing mechanics review, and another screening session are recommended.";
+      }
+      return "ATHLETIQ found stable movement quality with low current injury risk. The athlete can continue training while maintaining periodic screenings to preserve a personalized baseline and catch subtle deviations early.";
+    }
+
+    function normalizeResponse(data) {
+      // Normalize backend and fallback payloads into one front-end shape.
+      const fallback = generateSyntheticData();
+      const source = data && data.source ? data.source : fallback.source;
+      const rawFrames = data && Array.isArray(data.frame_data) && data.frame_data.length ? data.frame_data : fallback.frame_data;
+
+      const normalizedFrames = rawFrames.map((frame, index) => {
+        const leftKnee = typeof frame.left_knee_angle === "number" ? frame.left_knee_angle : Math.round((165 - (frame.emg_left || 0) * 30) * 10) / 10;
+        const rightKnee = typeof frame.right_knee_angle === "number" ? frame.right_knee_angle : Math.round((164 - (frame.emg_right || 0) * 28) * 10) / 10;
+        const asymmetry = typeof frame.asymmetry === "number" ? (frame.asymmetry <= 1 ? frame.asymmetry * 100 : frame.asymmetry) : Math.abs((frame.emg_left || 0) - (frame.emg_right || 0)) * 100;
+        const riskScore = typeof frame.risk_score === "number" ? frame.risk_score : 0;
+        return {
+          frame: frame.frame || index + 1,
+          rep: frame.rep || Math.floor(index / 18) + 1,
+          left_knee_angle: Math.round(leftKnee * 10) / 10,
+          right_knee_angle: Math.round(rightKnee * 10) / 10,
+          angle_difference: typeof frame.angle_difference === "number" ? frame.angle_difference : Math.round(Math.abs(leftKnee - rightKnee) * 10) / 10,
+          emg_left: typeof frame.emg_left === "number" ? frame.emg_left : 0,
+          emg_right: typeof frame.emg_right === "number" ? frame.emg_right : 0,
+          asymmetry: Math.round(asymmetry * 10) / 10,
+          fatigue: typeof frame.fatigue === "number" ? frame.fatigue : 0,
+          risk_score: Math.round(riskScore * 10) / 10,
+          alert: frame.alert || (riskScore >= 65 ? "HIGH" : riskScore >= 40 ? "MODERATE" : "LOW"),
+          grf_left: typeof frame.grf_left === "number" ? frame.grf_left : Math.round((frame.emg_left || 0) * 80 * 9.81 * 100) / 100,
+          grf_right: typeof frame.grf_right === "number" ? frame.grf_right : Math.round((frame.emg_right || 0) * 80 * 9.81 * 100) / 100
+        };
+      });
+
+      const scores = normalizedFrames.map((frame) => frame.risk_score);
+      const peak = typeof data.peak_risk_score === "number" ? data.peak_risk_score : Math.max(...scores);
+      const averageRisk = typeof data.average_risk_score === "number" ? data.average_risk_score : Math.round(average(scores) * 10) / 10;
+      const highRiskFrameCount = typeof data.high_risk_frame_count === "number" ? data.high_risk_frame_count : normalizedFrames.filter((frame) => frame.alert === "HIGH").length;
+      const alertLevel = data.alert_level || (peak >= 65 ? "HIGH" : peak >= 40 ? "MODERATE" : "LOW");
+      const aiReport = data.ai_report || generateReport(peak, averageRisk, alertLevel, highRiskFrameCount, normalizedFrames.length);
+
+      return {
+        source,
+        peak_risk_score: Math.round(peak * 10) / 10,
+        average_risk_score: Math.round(averageRisk * 10) / 10,
+        alert_level: alertLevel,
+        high_risk_frame_count: highRiskFrameCount,
+        total_frames_analyzed: data.total_frames_analyzed || normalizedFrames.length,
+        frame_data: normalizedFrames,
+        ai_report: aiReport
+      };
+    }
+
+    async function runDemo() {
+      await runAnalysis("demo");
+    }
+
+    async function analyzeUpload() {
+      if (!uploadedFile) {
+        window.alert("Please select a video file first.");
+        return;
+      }
+
+      await runAnalysis("upload");
+    }
+
+    async function runAnalysis(mode) {
+      // Show a believable processing sequence while the backend or fallback data is loading.
+      document.getElementById("progressSection").classList.remove("hidden");
+      document.getElementById("resultsSection").classList.add("hidden");
+      setButtons(true);
+
+      const steps = [
+        { label: "Initializing athlete profile...", pct: 10 },
+        { label: "Extracting pose keypoints...", pct: 32 },
+        { label: "Applying DSU patent engine...", pct: 57 },
+        { label: "Scoring asymmetry and fatigue...", pct: 79 },
+        { label: "Drafting coach summary...", pct: 96 },
+        { label: "Analysis complete", pct: 100 }
+      ];
+
+      for (const step of steps) {
+        document.getElementById("progressLabel").textContent = step.label;
+        document.getElementById("progressPct").textContent = step.pct + "%";
+        document.getElementById("progressBar").style.width = step.pct + "%";
+        await sleep(260);
+      }
+
+      let data;
+      try {
+        if (mode === "upload" && uploadedFile) {
+          // Upload path for the current FastAPI endpoint.
+          const formData = new FormData();
+          formData.append("video", uploadedFile);
+          const response = await fetch(getApiBase() + "/api/analyze", { method: "POST", body: formData });
+          if (!response.ok) throw new Error("Upload failed");
+          data = await response.json();
+        } else {
+          // Demo path for judges when you want a stable example instantly.
+          const response = await fetch(getApiBase() + "/api/demo");
+          if (!response.ok) throw new Error("Demo failed");
+          data = await response.json();
+        }
+      } catch (error) {
+        data = generateSyntheticData();
+      }
+
+      document.getElementById("progressSection").classList.add("hidden");
+      setButtons(false);
+      renderResults(normalizeResponse(data));
+    }
+
+    function setButtons(loading) {
+      // Keep the UI from double-submitting while the analysis pipeline is in flight.
+      const demoButton = document.getElementById("demoBtn");
+      const analyzeButton = document.getElementById("analyzeBtn");
+      demoButton.disabled = loading;
+      analyzeButton.disabled = loading;
+      demoButton.textContent = loading ? "Running analysis..." : "Run live demo dataset";
+      analyzeButton.textContent = loading ? "Please wait..." : "Analyze uploaded video";
+      demoButton.classList.toggle("opacity-70", loading);
+      analyzeButton.classList.toggle("opacity-70", loading);
+    }
+
+    function renderResults(data) {
+      // One render path updates the investor dashboard, coach view, and mobile view together.
+      frameData = data.frame_data || [];
+      document.getElementById("resultsSection").classList.remove("hidden");
+      document.getElementById("resultSource").textContent = "Source: " + data.source;
+      document.getElementById("resultAlertPill").className = "tag " + alertClassName(data.alert_level);
+      document.getElementById("resultAlertPill").textContent = data.alert_level;
+      document.getElementById("peakRisk").textContent = data.peak_risk_score;
+      document.getElementById("avgRisk").textContent = data.average_risk_score;
+      document.getElementById("highFrames").textContent = data.high_risk_frame_count;
+      document.getElementById("framesAnalyzed").textContent = data.total_frames_analyzed;
+      document.getElementById("gaugeValue").textContent = Math.round(data.peak_risk_score);
+      document.getElementById("alertBadge").className = "tag " + alertClassName(data.alert_level);
+      document.getElementById("alertBadge").textContent = data.alert_level + " risk";
+      document.getElementById("aiReport").textContent = data.ai_report;
+
+      updateGauge(data.peak_risk_score);
+      updateNarrative(data);
+      renderRiskChart(frameData);
+      renderJointBars(frameData);
+      renderFrameViews(frameData);
+      startSkeletonAnimation(frameData);
+
+      setTimeout(() => {
+        document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
+
+    function updateGauge(score) {
+      // Visual summary of session severity for judges and coaches.
+      const degrees = Math.max(0, Math.min(score, 100)) * 3.6;
+      const color = riskColor(score);
+      document.getElementById("gaugeRing").style.background = "conic-gradient(" + color + " " + degrees + "deg, rgba(15, 23, 42, 0.88) " + degrees + "deg)";
+    }
+
+    function updateNarrative(data) {
+      // Turn raw metrics into concise coaching callouts for the dashboard cards.
+      const lastFrames = frameData.slice(-30);
+      const averageFatigue = average(lastFrames.map((frame) => frame.fatigue || 0));
+      const averageAsymmetry = average(lastFrames.map((frame) => frame.asymmetry || 0));
+
+      let primaryDriver = "Balanced workload";
+      let coachAction = "Maintain monitoring";
+      if (averageFatigue > 0.45) primaryDriver = "Fatigue accumulation";
+      if (averageAsymmetry > 14) primaryDriver = "Left-right asymmetry";
+      if (data.alert_level === "HIGH") coachAction = "Reduce load + re-screen";
+      else if (data.alert_level === "MODERATE") coachAction = "Correct mechanics before progression";
+
+      document.getElementById("primaryDriver").textContent = primaryDriver;
+      document.getElementById("coachAction").textContent = coachAction;
+      document.getElementById("simulationCallout").textContent = data.alert_level === "HIGH"
+        ? "If sprint volume rises 20%, hamstring and ankle risk likely climb materially."
+        : "If workload increases, use the next session to check whether asymmetry worsens.";
+    }
+
+    function renderRiskChart(frames) {
+      // Timeline view helps explain how risk evolves across reps rather than as one static score.
+      const canvas = document.getElementById("riskChart");
+      const context = canvas.getContext("2d");
+      if (riskChartInstance) riskChartInstance.destroy();
+
+      const sampled = frames.filter((_, index) => index % 4 === 0);
+      riskChartInstance = new Chart(context, {
+        type: "line",
+        data: {
+          labels: sampled.map((frame) => "R" + frame.rep + "·F" + frame.frame),
+          datasets: [{
+            label: "Risk score",
+            data: sampled.map((frame) => frame.risk_score),
+            fill: true,
+            tension: 0.35,
+            borderColor: "#38bdf8",
+            backgroundColor: "rgba(56, 189, 248, 0.12)",
+            pointBackgroundColor: sampled.map((frame) => riskColor(frame.risk_score)),
+            pointRadius: 3,
+            pointHoverRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => "Risk: " + context.raw
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#64748b", maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+              grid: { display: false }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              ticks: { color: "#64748b" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            }
+          }
+        }
+      });
+    }
+
+    function renderJointBars(frames) {
+      // Aggregated load indicators echo the patent-engine outputs in a coach-readable format.
+      const recent = frames.slice(-30);
+      const joints = [
+        { name: "Left gastrocnemius EMG", value: average(recent.map((frame) => frame.emg_left || 0)) * 100, color: "#38bdf8" },
+        { name: "Right gastrocnemius EMG", value: average(recent.map((frame) => frame.emg_right || 0)) * 100, color: "#22d3ee" },
+        { name: "Load asymmetry", value: average(recent.map((frame) => frame.asymmetry || 0)), color: average(recent.map((frame) => frame.asymmetry || 0)) > 14 ? "#fb7185" : "#34d399" },
+        { name: "Fatigue index", value: average(recent.map((frame) => frame.fatigue || 0)) * 100, color: average(recent.map((frame) => frame.fatigue || 0)) > 50 ? "#fbbf24" : "#34d399" }
+      ];
+
+      document.getElementById("jointBars").innerHTML = joints.map((joint) => {
+        const width = Math.min(Math.max(joint.value, 0), 100);
+        return `
+          <div>
+            <div class="mb-2 flex items-center justify-between gap-4 text-sm">
+              <span class="text-slate-300">${joint.name}</span>
+              <span style="color:${joint.color}" class="font-semibold">${Math.round(joint.value)}%</span>
+            </div>
+            <div class="h-3 rounded-full bg-slate-800">
+              <div class="risk-bar-fill" style="width:${width}%; background:${joint.color}"></div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderFrameViews(frames) {
+      // Desktop gets a table; mobile gets stacked cards so the same data stays readable.
+      const displayFrames = frames.slice(0, 24);
+      const table = document.getElementById("frameTable");
+      const mobile = document.getElementById("frameMobile");
+
+      table.innerHTML = displayFrames.map((frame) => `
+        <tr class="text-slate-300">
+          <td class="py-3 pr-4 text-slate-500">${frame.frame}</td>
+          <td class="py-3 pr-4">${frame.rep}</td>
+          <td class="py-3 pr-4 text-sky-200">${frame.left_knee_angle}°</td>
+          <td class="py-3 pr-4 text-cyan-200">${frame.right_knee_angle}°</td>
+          <td class="py-3 pr-4 ${frame.asymmetry > 15 ? "text-rose-300" : "text-slate-300"}">${frame.asymmetry}%</td>
+          <td class="py-3 pr-4">${frame.grf_left}N</td>
+          <td class="py-3 pr-4 font-semibold" style="color:${riskColor(frame.risk_score)}">${frame.risk_score}</td>
+          <td class="py-3"><span class="tag ${alertClassName(frame.alert)}">${frame.alert}</span></td>
+        </tr>
+      `).join("");
+
+      mobile.innerHTML = displayFrames.map((frame) => `
+        <article class="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-white">Frame ${frame.frame}</p>
+              <p class="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">Rep ${frame.rep}</p>
+            </div>
+            <span class="tag ${alertClassName(frame.alert)}">${frame.alert}</span>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-300">
+            <div><span class="text-slate-500">Left knee</span><p class="mt-1">${frame.left_knee_angle}°</p></div>
+            <div><span class="text-slate-500">Right knee</span><p class="mt-1">${frame.right_knee_angle}°</p></div>
+            <div><span class="text-slate-500">Asymmetry</span><p class="mt-1">${frame.asymmetry}%</p></div>
+            <div><span class="text-slate-500">Risk</span><p class="mt-1" style="color:${riskColor(frame.risk_score)}">${frame.risk_score}</p></div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function startSkeletonAnimation(frames) {
+      // Lightweight "digital twin" animation that replays the analyzed movement state.
+      if (animationTimer) clearInterval(animationTimer);
+      if (!frames.length) return;
+      currentFrame = 0;
+      drawSkeleton(frames[0]);
+      animationTimer = setInterval(() => {
+        drawSkeleton(frames[currentFrame % frames.length]);
+        currentFrame += 1;
+      }, 90);
+    }
+
+    function drawSkeleton(frame) {
+      // This is a lightweight visual stand-in for the future real digital-twin overlay.
+      const canvas = document.getElementById("skeletonCanvas");
+      const context = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+
+      context.clearRect(0, 0, width, height);
+      context.fillStyle = "#020617";
+      context.fillRect(0, 0, width, height);
+
+      const color = riskColor(frame.risk_score);
+      const phase = (frame.frame % 20) / 20;
+      const depth = Math.sin(Math.PI * phase);
+      const fatigue = frame.fatigue || 0;
+      const centerX = width / 2;
+      const scale = 95;
+      const joints = {
+        head: [centerX, height * 0.12],
+        neck: [centerX, height * 0.2],
+        left_shoulder: [centerX - 0.32 * scale, height * 0.21],
+        right_shoulder: [centerX + 0.32 * scale, height * 0.21],
+        left_hip: [centerX - 0.18 * scale, height * 0.42 + depth * 20],
+        right_hip: [centerX + 0.18 * scale, height * 0.42 + depth * 20],
+        left_knee: [centerX - 0.22 * scale - depth * 8, height * 0.64 + depth * 16 + fatigue * 10],
+        right_knee: [centerX + 0.22 * scale + depth * 8, height * 0.64 + depth * 16 + fatigue * 12],
+        left_ankle: [centerX - 0.18 * scale, height * 0.86],
+        right_ankle: [centerX + 0.18 * scale, height * 0.86]
+      };
+
+      const bones = [
+        ["head", "neck"],
+        ["neck", "left_shoulder"],
+        ["neck", "right_shoulder"],
+        ["neck", "left_hip"],
+        ["neck", "right_hip"],
+        ["left_hip", "right_hip"],
+        ["left_hip", "left_knee"],
+        ["left_knee", "left_ankle"],
+        ["right_hip", "right_knee"],
+        ["right_knee", "right_ankle"]
+      ];
+
+      context.strokeStyle = color;
+      context.lineWidth = 3;
+      context.lineCap = "round";
+
+      bones.forEach(([from, to]) => {
+        context.beginPath();
+        context.moveTo(joints[from][0], joints[from][1]);
+        context.lineTo(joints[to][0], joints[to][1]);
+        context.stroke();
+      });
+
+      context.beginPath();
+      context.arc(joints.head[0], joints.head[1], 16, 0, Math.PI * 2);
+      context.stroke();
+
+      Object.values(joints).forEach(([x, y]) => {
+        context.beginPath();
+        context.arc(x, y, 4.5, 0, Math.PI * 2);
+        context.fillStyle = color;
+        context.fill();
+      });
+
+      context.fillStyle = color;
+      context.font = "600 14px Avenir Next, Segoe UI, sans-serif";
+      context.textAlign = "center";
+      context.fillText("Risk " + Math.round(frame.risk_score) + " | Rep " + frame.rep, centerX, height - 18);
+    }
+
+    async function askAgent() {
+      // Connect the dashboard to the FastAPI/Ollama coach endpoint described in the DSU workshop.
+      const question = document.getElementById("agentQuestion").value.trim();
+      if (!question) {
+        window.alert("Enter a question for the AI coach.");
+        return;
+      }
+
+      const status = document.getElementById("agentStatus");
+      const output = document.getElementById("agentResponse");
+      status.textContent = "Thinking...";
+
+      try {
+        const response = await fetch(getApiBase() + "/agent?query=" + encodeURIComponent(question));
+        if (!response.ok) throw new Error("Agent unavailable");
+        const data = await response.json();
+        const reply = data.agent_response;
+        output.classList.remove("hidden");
+        output.textContent = typeof reply === "string"
+          ? reply
+          : reply.summary || reply.recommendation || JSON.stringify(reply, null, 2);
+        status.textContent = "Coach response ready.";
+      } catch (error) {
+        output.classList.remove("hidden");
+        output.textContent = "The local AI coach is unavailable, so use the dashboard summary: reduce workload when asymmetry and fatigue rise together, then re-screen before the next high-intensity session.";
+        status.textContent = "Using fallback guidance.";
+      }
+    }
+
+    checkBackend();
+  </script>
+</body>
+</html>
