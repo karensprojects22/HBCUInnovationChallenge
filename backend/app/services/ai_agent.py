@@ -10,18 +10,17 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL = "llama3"
 
 
-# -----------------------------------
 # TOOL: call your FastAPI backend
-# -----------------------------------
+
 async def get_risk_analysis():
     async with httpx.AsyncClient() as client:
-        response = await client.get("http://127.0.0.1:8000/api/demo")
-        return response.json()
+        return {
+    "response": "Demo mode: AI agent is working. Risk is moderate and athlete should reduce load by 15%."
+}
 
 
-# -----------------------------------
 # AI AGENT CORE
-# -----------------------------------
+
 async def run_agent(user_query: str):
     analysis = await get_risk_analysis()
 
