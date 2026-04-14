@@ -19,6 +19,7 @@ numpy==2.0.2
 packaging==26.0
 pandas==2.3.3
 pillow==11.3.0
+python-multipart==0.0.20
 pydantic==2.13.0
 pydantic_core==2.46.0
 pyparsing==3.3.2
