@@ -274,7 +274,12 @@
         <h3 class="text-sm font-semibold text-slate-300">Digital Twin — Live Tracking</h3>
         <span class="text-xs text-slate-500" id="resultSource">Source: waiting</span>
       </div>
-      <canvas id="skeletonCanvas" width="300" height="320" class="mx-auto rounded-lg" style="background:#030712;display:block;max-width:100%"></canvas>
+      <div class="grid grid-cols-2 gap-3 mobile-stack-3">
+        <div class="rounded-lg overflow-hidden" style="background:#030712;border:1px solid rgba(255,255,255,0.08)">
+          <video id="sourceVideo" class="w-full h-full block" controls playsinline muted style="min-height:320px;object-fit:cover;background:#030712"></video>
+        </div>
+        <canvas id="skeletonCanvas" width="300" height="320" class="mx-auto rounded-lg" style="background:#030712;display:block;max-width:100%"></canvas>
+      </div>
       <div class="mt-3 flex justify-center gap-4 text-xs text-slate-500">
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#34d399"></span>Low</span>
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#fbbf24"></span>Moderate</span>
@@ -349,10 +354,13 @@
 
 <script>
 let uploadedFile = null;
+let uploadedVideoUrl = null;
 let riskChartInstance = null;
 let animationTimer = null;
 let frameData = [];
+let poseFrameData = [];
 let currentFrame = 0;
+let currentVideoDimensions = { width: 720, height: 1280 };
 const DEFAULT_API_BASE = "http://127.0.0.1:8000";
 
 function inferDefaultApiBase() {
@@ -392,6 +400,8 @@ async function checkBackend() {
 
 function handleFileSelect(input) {
   uploadedFile = input.files && input.files[0] ? input.files[0] : null;
+  if (uploadedVideoUrl) URL.revokeObjectURL(uploadedVideoUrl);
+  uploadedVideoUrl = uploadedFile ? URL.createObjectURL(uploadedFile) : null;
   updateFileLabel();
   updateAnalyzeButtonState();
 }
@@ -402,6 +412,8 @@ function handleDrop(event) {
   const file = event.dataTransfer.files[0];
   if (file && file.type.startsWith("video/")) {
     uploadedFile = file;
+    if (uploadedVideoUrl) URL.revokeObjectURL(uploadedVideoUrl);
+    uploadedVideoUrl = URL.createObjectURL(file);
     updateFileLabel();
     updateAnalyzeButtonState();
   }
@@ -557,6 +569,9 @@ function normalizeResponse(data) {
     high_risk_frame_count: highRiskFrameCount,
     total_frames_analyzed: data.total_frames_analyzed || normalizedFrames.length,
     frame_data: normalizedFrames,
+    pose_frames: Array.isArray(data.pose_frames) ? data.pose_frames : [],
+    frame_width: data.frame_width || 720,
+    frame_height: data.frame_height || 1280,
     ai_report: aiReport
   };
 }
@@ -619,6 +634,11 @@ function setButtons(loading) {
 
 function renderResults(data) {
   frameData = data.frame_data || [];
+  poseFrameData = data.pose_frames || [];
+  currentVideoDimensions = {
+    width: data.frame_width || 720,
+    height: data.frame_height || 1280
+  };
   document.getElementById("resultsSection").classList.remove("hidden");
   document.getElementById("resultSource").textContent = "Source: " + data.source;
   document.getElementById("peakRisk").textContent = data.peak_risk_score;
@@ -628,12 +648,17 @@ function renderResults(data) {
   document.getElementById("framesAnalyzed").textContent = data.total_frames_analyzed + " frames analyzed";
   document.getElementById("aiReport").textContent = data.ai_report;
   document.getElementById("alertBadge").innerHTML = `<span class="tag ${alertClassName(data.alert_level)}">${data.alert_level}</span>`;
+  const sourceVideo = document.getElementById("sourceVideo");
+  if (uploadedVideoUrl) {
+    sourceVideo.src = uploadedVideoUrl;
+    sourceVideo.load();
+  }
 
   updateNarrative(data);
   renderRiskChart(frameData);
   renderJointBars(frameData);
   renderFrameViews(frameData);
-  startSkeletonAnimation(frameData);
+  startSkeletonAnimation(frameData, poseFrameData);
 
   setTimeout(() => document.getElementById("resultsSection").scrollIntoView({ behavior: "smooth" }), 100);
 }
@@ -751,18 +776,28 @@ function renderFrameViews(frames) {
   `).join("");
 }
 
-function startSkeletonAnimation(frames) {
+function startSkeletonAnimation(frames, poseFrames) {
   if (animationTimer) clearInterval(animationTimer);
   if (!frames.length) return;
   currentFrame = 0;
-  drawSkeleton(frames[0]);
+  drawSkeleton(frames[0], poseFrames[0] || null);
   animationTimer = setInterval(() => {
-    drawSkeleton(frames[currentFrame % frames.length]);
+    const frameIndex = currentFrame % frames.length;
+    drawSkeleton(frames[frameIndex], poseFrames[frameIndex] || null);
     currentFrame += 1;
   }, 80);
 }
 
-function drawSkeleton(frame) {
+function scalePoint(point, width, height) {
+  const srcWidth = currentVideoDimensions.width || 720;
+  const srcHeight = currentVideoDimensions.height || 1280;
+  return [
+    (point[0] / srcWidth) * width,
+    (point[1] / srcHeight) * height
+  ];
+}
+
+function drawSkeleton(frame, poseFrame) {
   const canvas = document.getElementById("skeletonCanvas");
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
@@ -772,20 +807,38 @@ function drawSkeleton(frame) {
   ctx.fillRect(0, 0, width, height);
 
   const color = riskColor(frame.risk_score);
-  const phase = (frame.frame % 20) / 20;
-  const depth = Math.sin(Math.PI * phase);
-  const fatigue = frame.fatigue || 0;
   const cx = width / 2;
-  const scale = 90;
-
-  const joints = {
-    head: [cx, height * 0.10], neck: [cx, height * 0.17],
-    left_shoulder: [cx - 0.35 * scale, height * 0.17], right_shoulder: [cx + 0.35 * scale, height * 0.17],
-    left_hip: [cx - 0.18 * scale, height * 0.38 + depth * 25], right_hip: [cx + 0.18 * scale, height * 0.38 + depth * 25],
-    left_knee: [cx - 0.20 * scale - depth * 8, height * 0.60 + depth * 15 + fatigue * 8],
-    right_knee: [cx + 0.20 * scale + depth * 8, height * 0.60 + depth * 15 + fatigue * 12],
-    left_ankle: [cx - 0.18 * scale, height * 0.82], right_ankle: [cx + 0.18 * scale, height * 0.82]
-  };
+  let joints;
+  if (poseFrame && poseFrame.keypoints) {
+    const kp = poseFrame.keypoints;
+    joints = {
+      left_shoulder: kp.left_shoulder ? scalePoint(kp.left_shoulder, width, height) : null,
+      right_shoulder: kp.right_shoulder ? scalePoint(kp.right_shoulder, width, height) : null,
+      left_hip: kp.left_hip ? scalePoint(kp.left_hip, width, height) : null,
+      right_hip: kp.right_hip ? scalePoint(kp.right_hip, width, height) : null,
+      left_knee: kp.left_knee ? scalePoint(kp.left_knee, width, height) : null,
+      right_knee: kp.right_knee ? scalePoint(kp.right_knee, width, height) : null,
+      left_ankle: kp.left_ankle ? scalePoint(kp.left_ankle, width, height) : null,
+      right_ankle: kp.right_ankle ? scalePoint(kp.right_ankle, width, height) : null
+    };
+    joints.neck = joints.left_shoulder && joints.right_shoulder
+      ? [(joints.left_shoulder[0] + joints.right_shoulder[0]) / 2, (joints.left_shoulder[1] + joints.right_shoulder[1]) / 2 - 10]
+      : [width / 2, height * 0.18];
+    joints.head = [joints.neck[0], joints.neck[1] - 28];
+  } else {
+    const phase = (frame.frame % 20) / 20;
+    const depth = Math.sin(Math.PI * phase);
+    const fatigue = frame.fatigue || 0;
+    const scale = 90;
+    joints = {
+      head: [cx, height * 0.10], neck: [cx, height * 0.17],
+      left_shoulder: [cx - 0.35 * scale, height * 0.17], right_shoulder: [cx + 0.35 * scale, height * 0.17],
+      left_hip: [cx - 0.18 * scale, height * 0.38 + depth * 25], right_hip: [cx + 0.18 * scale, height * 0.38 + depth * 25],
+      left_knee: [cx - 0.20 * scale - depth * 8, height * 0.60 + depth * 15 + fatigue * 8],
+      right_knee: [cx + 0.20 * scale + depth * 8, height * 0.60 + depth * 15 + fatigue * 12],
+      left_ankle: [cx - 0.18 * scale, height * 0.82], right_ankle: [cx + 0.18 * scale, height * 0.82]
+    };
+  }
 
   const bones = [
     ["head", "neck"], ["neck", "left_shoulder"], ["neck", "right_shoulder"],
@@ -798,6 +851,7 @@ function drawSkeleton(frame) {
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
   bones.forEach(([a, b]) => {
+    if (!joints[a] || !joints[b]) return;
     ctx.beginPath();
     ctx.moveTo(...joints[a]);
     ctx.lineTo(...joints[b]);
@@ -805,12 +859,17 @@ function drawSkeleton(frame) {
   });
 
   ctx.beginPath();
-  ctx.arc(joints.head[0], joints.head[1], 16, 0, Math.PI * 2);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
+  if (joints.head) {
+    ctx.beginPath();
+    ctx.arc(joints.head[0], joints.head[1], 16, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
 
-  Object.values(joints).forEach(([x, y]) => {
+  Object.values(joints).forEach((point) => {
+    if (!point) return;
+    const [x, y] = point;
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fillStyle = color;
