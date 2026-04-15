@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, UploadFile
 
 from app.services.patent_engine import process_frame
 from app.services.yolo_pose import analyze_video_file
+from app.services.gemini import generate_report
 
 router = APIRouter()
 LATEST_ANALYSIS: Optional[dict[str, Any]] = None

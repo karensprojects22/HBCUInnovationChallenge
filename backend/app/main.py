@@ -24,7 +24,7 @@ app.include_router(analysis.router, prefix="/api")
 app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 
-# Local LLM endpoint used by the "AI coach" panel in the front-end.
+# AI coach endpoint used by the front-end for follow-up guidance.
 @app.get("/agent")
 async def agent_endpoint(query: str):
     result = await run_agent(query)

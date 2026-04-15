@@ -1,13 +1,9 @@
-# ATHLETIQ AI agent (demo-safe version)
-
-
-import httpx
 import json
 
-# Local development model. This follows the DSU workshop pattern:
-# FastAPI exposes an endpoint and Ollama serves the Llama-family model locally.
-OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL = "llama3"
+import httpx
+
+from app.core.config import GEMINI_API_KEY
+from app.services.gemini import model as gemini_model
 
 
 # Tool 1 in the agent loop: fetch the latest motion-analysis summary from FastAPI.
@@ -31,18 +27,13 @@ async def get_risk_analysis():
             }
 
 
-# Core agent entry point. Right now this is a lightweight one-step pattern rather than a
-# full multi-tool ReAct loop, but the structure is intentionally compatible with that direction.
-
 async def run_agent(user_query: str):
     analysis = await get_risk_analysis()
 
-    # The system prompt gives the model the same structured context a future tool-calling
-    # agent would use: current data, user question, and the action we want from the model.
-    system_prompt = f"""
+    prompt = f"""
 You are an elite sports biomechanics AI coach.
 
-You analyze injury risk and give training recommendations.
+You support ATHLETIQ, a patent-backed biomechanics research platform.
 
 DATA:
 {json.dumps(analysis, indent=2)}
@@ -56,38 +47,22 @@ TASK:
 - Give actionable training advice
 """
 
-    
-    # Try the real local LLM first so the demo reflects the DSU workshop architecture.
-
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                OLLAMA_URL,
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_query}
-                    ]
-                }
-            )
+        if gemini_model is None or not GEMINI_API_KEY:
+            raise RuntimeError("Gemini model unavailable")
 
-            result = response.json()
+        response = gemini_model.generate_content(prompt)
 
-            return {
-                "mode": "llm",
-                "response": result
-            }
-
-    
-    # Guaranteed fallback keeps the coach panel functional if Ollama is offline.
-    
+        return {
+            "mode": "gemini",
+            "response": response.text.strip()
+        }
     except Exception:
         risk = analysis.get("peak_risk_score", 0)
         alert = analysis.get("alert_level", "UNKNOWN")
 
         if risk >= 70:
-            recommendation = "High injury risk detected..."
+            recommendation = "High injury risk detected. Reduce load, correct mechanics, and repeat screening before progression."
         elif risk >= 40:
             recommendation = "Moderate risk detected. Reduce load slightly and monitor fatigue."
         else:
