@@ -18,7 +18,7 @@ async def get_risk_analysis():
     """
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            response = await client.get("http://127.0.0.1:8000/api/demo")
+            response = await client.get("http://127.0.0.1:8000/api/latest")
             return response.json()
         except Exception:
             # fallback if backend call fails
