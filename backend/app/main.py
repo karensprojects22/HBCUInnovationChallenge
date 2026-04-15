@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from app.api import analysis
 from app.services.ai_agent import run_agent
 
 app = FastAPI()
 FRONTEND_FILE = Path(__file__).resolve().parents[2] / "frontend" / "index.html"
+FRONTEND_DIR = FRONTEND_FILE.parent
 
 # Allow the static HTML demo to call this API from `file://` or another local origin.
 app.add_middleware(
@@ -19,6 +21,7 @@ app.add_middleware(
 
 # Core motion-analysis routes used by the dashboard.
 app.include_router(analysis.router, prefix="/api")
+app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
 
 # Local LLM endpoint used by the "AI coach" panel in the front-end.
