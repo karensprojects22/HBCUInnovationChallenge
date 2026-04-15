@@ -1,15 +1,18 @@
 import math
-from typing import Optional
+import tempfile
+from pathlib import Path
+from typing import Any, Optional
 
 from fastapi import APIRouter, File, UploadFile
 
 from app.services.patent_engine import process_frame
+from app.services.yolo_pose import analyze_video_file
 
 router = APIRouter()
+LATEST_ANALYSIS: Optional[dict[str, Any]] = None
 
 
 def generate_ai_report(peak: float, avg: float, alert: str, high_count: int, total_frames: int) -> str:
-    # Demo-safe narrative so the dashboard always has a coach-facing summary to show.
     flagged_pct = round((high_count / max(total_frames, 1)) * 100)
     if alert == "HIGH":
         return (
@@ -30,10 +33,15 @@ def generate_ai_report(peak: float, avg: float, alert: str, high_count: int, tot
     )
 
 
-def build_demo_dataset(source_label: Optional[str] = None) -> dict:
-    # This synthetic dataset mirrors the shape the eventual YOLO + patent pipeline should return.
-    # It keeps the front-end fully functional while the real pose-detection pipeline is still evolving.
+def set_latest_analysis(result: dict[str, Any]) -> dict[str, Any]:
+    global LATEST_ANALYSIS
+    LATEST_ANALYSIS = result
+    return result
+
+
+def build_demo_dataset(source_label: Optional[str] = None) -> dict[str, Any]:
     sample_frames = []
+    pose_frames = []
     reps = 8
     frames_per_rep = 18
     fatigue_onset = 5
@@ -61,9 +69,27 @@ def build_demo_dataset(source_label: Optional[str] = None) -> dict:
             frame["left_knee_angle"] = left_knee_angle
             frame["right_knee_angle"] = right_knee_angle
             frame["angle_difference"] = round(abs(left_knee_angle - right_knee_angle), 1)
-            # The patent engine returns asymmetry as a ratio; the dashboard presents it as a percentage.
             frame["asymmetry"] = round(frame["asymmetry"] * 100, 1)
             sample_frames.append(frame)
+
+            cx = 360
+            pose_frames.append(
+                {
+                    "frame": len(sample_frames),
+                    "timestamp": round(len(sample_frames) / 30.0, 2),
+                    "keypoints": {
+                        "left_shoulder": [cx - 38, 145, 0.9],
+                        "right_shoulder": [cx + 38, 145, 0.9],
+                        "left_hip": [cx - 20, 245 + depth * 18, 0.9],
+                        "right_hip": [cx + 20, 245 + depth * 18, 0.9],
+                        "left_knee": [cx - 24 - depth * 10, 330 + depth * 22, 0.9],
+                        "right_knee": [cx + 24 + depth * 10, 330 + depth * 22 + fatigue * 10, 0.9],
+                        "left_ankle": [cx - 22, 425, 0.9],
+                        "right_ankle": [cx + 22, 425, 0.9],
+                    },
+                    "analysis": frame,
+                }
+            )
 
     risk_scores = [frame["risk_score"] for frame in sample_frames]
     peak_risk = max(risk_scores)
@@ -74,33 +100,55 @@ def build_demo_dataset(source_label: Optional[str] = None) -> dict:
     return {
         "message": "API is working with ATHLETIQ demo data",
         "source": source_label or "demo",
+        "fps": 30,
+        "duration_seconds": round(len(sample_frames) / 30.0, 2),
         "peak_risk_score": peak_risk,
         "average_risk_score": avg_risk,
         "alert_level": alert_level,
         "high_risk_frame_count": high_risk_count,
         "total_frames_analyzed": len(sample_frames),
         "frame_data": sample_frames,
-        "ai_report": generate_ai_report(
-            peak_risk,
-            avg_risk,
-            alert_level,
-            high_risk_count,
-            len(sample_frames),
-        ),
+        "pose_frames": pose_frames,
+        "ai_report": generate_ai_report(peak_risk, avg_risk, alert_level, high_risk_count, len(sample_frames)),
     }
 
 
 @router.get("/demo")
 def demo():
-    # Fast path for live demos when you want predictable output without uploading a file first.
-    return build_demo_dataset()
+    return set_latest_analysis(build_demo_dataset())
+
+
+@router.get("/latest")
+def latest():
+    return LATEST_ANALYSIS or set_latest_analysis(build_demo_dataset())
 
 
 @router.post("/analyze")
 async def analyze_video(video: UploadFile = File(...)):
-    # Temporary upload handler: accepts a real file but returns demo-shaped analytics until
-    # YOLO pose extraction is wired into the backend processing path.
-    result = build_demo_dataset(source_label=video.filename or "uploaded-video")
-    result["uploaded_file"] = video.filename
-    result["message"] = f"Processed demo analysis for {video.filename}"
-    return result
+    suffix = Path(video.filename or "upload.mp4").suffix or ".mp4"
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(await video.read())
+            temp_path = temp_file.name
+
+        result = analyze_video_file(temp_path)
+        result["source"] = video.filename or "uploaded-video"
+        result["uploaded_file"] = video.filename
+        result["message"] = f"Processed analysis for {video.filename}"
+        result["ai_report"] = generate_ai_report(
+            result["peak_risk_score"],
+            result["average_risk_score"],
+            result["alert_level"],
+            result["high_risk_frame_count"],
+            result["total_frames_analyzed"],
+        )
+        return set_latest_analysis(result)
+    except Exception as exc:
+        fallback = build_demo_dataset(source_label=(video.filename or "uploaded-video") + " (demo fallback)")
+        fallback["uploaded_file"] = video.filename
+        fallback["message"] = f"Real analysis unavailable: {exc}"
+        return set_latest_analysis(fallback)
+    finally:
+        if temp_path and Path(temp_path).exists():
+            Path(temp_path).unlink(missing_ok=True)
