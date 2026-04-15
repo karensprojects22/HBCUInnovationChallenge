@@ -197,18 +197,9 @@
 
 <section class="max-w-4xl mx-auto px-6 mb-8">
   <div class="card">
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
-      <div>
-        <h2 class="text-lg font-semibold mb-2">Analyze Athlete Movement</h2>
-        <p class="text-slate-400 text-sm">Upload a video first, then run athlete motion analysis through the ATHLETIQ pipeline.</p>
-      </div>
-      <div class="w-full sm:w-auto">
-        <label for="apiBaseInput" class="text-xs uppercase tracking-[0.22em] text-slate-500">Backend URL</label>
-        <div class="flex gap-2 mt-2">
-          <input id="apiBaseInput" type="text" class="w-full sm:w-64 rounded-xl border px-3 py-2 text-sm text-white bg-slate-950/70" style="border-color:rgba(255,255,255,0.08)" placeholder="http://127.0.0.1:8000"/>
-          <button onclick="saveApiBase()" class="rounded-xl px-4 py-2 text-sm font-semibold text-slate-950" style="background:#38bdf8">Save</button>
-        </div>
-      </div>
+    <div class="mb-5">
+      <h2 class="text-lg font-semibold mb-2">Analyze Athlete Movement</h2>
+      <p class="text-slate-400 text-sm">Upload a video first, then run athlete motion analysis through the ATHLETIQ pipeline.</p>
     </div>
 
     <div class="upload-zone p-10 text-center mb-5" id="dropZone"
@@ -281,6 +272,9 @@
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#fbbf24"></span>Moderate</span>
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#fb7185"></span>High</span>
       </div>
+      <div class="mt-3 text-center text-xs text-slate-500">
+        Twin color changes with the current frame risk score: green means stable movement, yellow means moderate loading risk, and red marks the highest injury-risk frames.
+      </div>
     </div>
 
     <div class="card">
@@ -290,12 +284,14 @@
       </div>
       <div class="mt-4 grid grid-cols-2 gap-3">
         <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.04)">
-          <div class="text-slate-500 text-xs uppercase tracking-wide">Primary Driver</div>
+          <div class="text-slate-500 text-xs uppercase tracking-wide">Primary Risk Driver</div>
           <div id="primaryDriver" class="text-sm font-semibold mt-2">Fatigue onset</div>
+          <div class="text-slate-500 text-xs mt-2">The main movement factor pushing the risk score upward.</div>
         </div>
         <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.04)">
-          <div class="text-slate-500 text-xs uppercase tracking-wide">Coach Action</div>
+          <div class="text-slate-500 text-xs uppercase tracking-wide">Coach Feedback</div>
           <div id="coachAction" class="text-sm font-semibold mt-2">Monitor</div>
+          <div class="text-slate-500 text-xs mt-2">The intervention or guidance ATHLETIQ recommends to the coach.</div>
         </div>
       </div>
       <div class="mt-3 rounded-xl p-3 text-sm text-slate-300" style="background:rgba(255,255,255,0.04)">
@@ -316,8 +312,9 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
       </div>
       <h3 class="text-sm font-semibold text-slate-300">AI Movement Report</h3>
-      <span class="tag" style="background:rgba(34,211,238,0.12);color:#bae6fd;border:1px solid rgba(34,211,238,0.24)">Powered by Ollama</span>
+      <span class="tag" style="background:rgba(34,211,238,0.12);color:#bae6fd;border:1px solid rgba(34,211,238,0.24)">Coach-facing summary</span>
     </div>
+    <p class="text-slate-500 text-xs uppercase tracking-wide mb-2">Generated movement interpretation</p>
     <p class="text-slate-300 leading-relaxed text-sm" id="aiReport">—</p>
   </div>
 
@@ -357,25 +354,7 @@ let frameData = [];
 let poseFrameData = [];
 let currentFrame = 0;
 let currentVideoDimensions = { width: 720, height: 1280 };
-const DEFAULT_API_BASE = "http://127.0.0.1:8000";
-
-function inferDefaultApiBase() {
-  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-    return window.location.origin;
-  }
-  return DEFAULT_API_BASE;
-}
-
-function getApiBase() {
-  return localStorage.getItem("athletiqApiBase") || inferDefaultApiBase();
-}
-
-function saveApiBase() {
-  const input = document.getElementById("apiBaseInput");
-  const value = (input.value || "").trim() || inferDefaultApiBase();
-  localStorage.setItem("athletiqApiBase", value.replace(/\/$/, ""));
-  checkBackend();
-}
+const API_BASE = window.location.origin;
 
 function setBackendBadge(text, type) {
   const badge = document.getElementById("backendStatus");
@@ -384,9 +363,8 @@ function setBackendBadge(text, type) {
 }
 
 async function checkBackend() {
-  document.getElementById("apiBaseInput").value = getApiBase();
   try {
-    const response = await fetch(getApiBase() + "/health", { method: "GET" });
+    const response = await fetch(API_BASE + "/health", { method: "GET" });
     if (!response.ok) throw new Error("Backend unreachable");
     setBackendBadge("Backend online", "low");
   } catch (error) {
@@ -614,7 +592,7 @@ async function runAnalysis() {
   try {
     const formData = new FormData();
     formData.append("video", uploadedFile);
-    const response = await fetch(getApiBase() + "/api/analyze", { method: "POST", body: formData });
+    const response = await fetch(API_BASE + "/api/analyze", { method: "POST", body: formData });
     if (!response.ok) throw new Error("Upload failed");
     data = await response.json();
   } catch (error) {
@@ -630,7 +608,7 @@ async function runAnalysis() {
 function setButtons(loading) {
   const uploadButton = document.getElementById("uploadBtn");
   uploadButton.disabled = loading;
-  uploadButton.textContent = loading ? "Analyzing Athlete Motion..." : (uploadedFile ? "Analyze Athlete Motion" : "Upload Video");
+  uploadButton.textContent = loading ? "Analyzing Athlete Motion" : (uploadedFile ? "Analyze Athlete Motion" : "Upload Video");
 }
 
 function renderResults(data) {
@@ -688,28 +666,38 @@ function renderRiskChart(frames) {
   if (riskChartInstance) riskChartInstance.destroy();
 
   const sample = frames.filter((_, index) => index % 4 === 0);
-  const labels = sample.map((frame) => "R" + frame.rep);
+  const labels = sample.map((frame) => "R" + frame.rep + "·F" + frame.frame);
   const risks = sample.map((frame) => frame.risk_score);
-  const colors = risks.map((risk) => riskColor(risk));
 
   riskChartInstance = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [{
         label: "Risk Score",
         data: risks,
-        backgroundColor: colors,
-        borderRadius: 4,
-        borderSkipped: false
+        fill: true,
+        tension: 0.35,
+        borderColor: "#38bdf8",
+        backgroundColor: "rgba(56, 189, 248, 0.12)",
+        pointBackgroundColor: sample.map((frame) => riskColor(frame.risk_score)),
+        pointRadius: 3,
+        pointHoverRadius: 4
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => "Risk: " + context.raw
+          }
+        }
+      },
       scales: {
-        x: { ticks: { color: "#64748b", font: { size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: "#64748b", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
         y: { min: 0, max: 100, ticks: { color: "#64748b", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
       }
     }
@@ -717,11 +705,12 @@ function renderRiskChart(frames) {
 }
 
 function renderJointBars(frames) {
-  const last30 = frames.slice(-30);
-  const avgEmgL = average(last30.map((frame) => frame.emg_left || 0)) * 100;
-  const avgEmgR = average(last30.map((frame) => frame.emg_right || 0)) * 100;
-  const avgAsym = average(last30.map((frame) => frame.asymmetry || 0));
-  const avgFat = average(last30.map((frame) => frame.fatigue || 0)) * 100;
+  const recent = frames.slice(-30);
+  const safeRecent = recent.length ? recent : [{ emg_left: 0, emg_right: 0, asymmetry: 0, fatigue: 0 }];
+  const avgEmgL = average(safeRecent.map((frame) => Number(frame.emg_left) || 0)) * 100;
+  const avgEmgR = average(safeRecent.map((frame) => Number(frame.emg_right) || 0)) * 100;
+  const avgAsym = average(safeRecent.map((frame) => Number(frame.asymmetry) || 0));
+  const avgFat = average(safeRecent.map((frame) => Number(frame.fatigue) || 0)) * 100;
 
   const joints = [
     { name: "Left Gastrocnemius (EMG)", value: avgEmgL, color: "#38bdf8" },
@@ -786,7 +775,7 @@ function startSkeletonAnimation(frames, poseFrames) {
     const frameIndex = currentFrame % frames.length;
     drawSkeleton(frames[frameIndex], poseFrames[frameIndex] || null);
     currentFrame += 1;
-  }, 80);
+  }, 180);
 }
 
 function scalePoint(point, width, height) {
