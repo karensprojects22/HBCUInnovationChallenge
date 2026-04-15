@@ -664,24 +664,22 @@ function renderRiskChart(frames) {
   const ctx = document.getElementById("riskChart").getContext("2d");
   if (riskChartInstance) riskChartInstance.destroy();
 
-  const sample = frames.filter((_, index) => index % 4 === 0);
-  const labels = sample.map((frame) => "R" + frame.rep + "·F" + frame.frame);
+  const sample = frames.slice(0, 36);
+  const labels = sample.map((frame) => `R${frame.rep}`);
   const risks = sample.map((frame) => frame.risk_score);
 
   riskChartInstance = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [{
         label: "Risk Score",
         data: risks,
-        fill: true,
-        tension: 0.35,
-        borderColor: "#38bdf8",
-        backgroundColor: "rgba(56, 189, 248, 0.12)",
-        pointBackgroundColor: sample.map((frame) => riskColor(frame.risk_score)),
-        pointRadius: 3,
-        pointHoverRadius: 4
+        backgroundColor: sample.map((frame) => riskColor(frame.risk_score)),
+        borderRadius: 6,
+        borderSkipped: false,
+        barPercentage: 0.68,
+        categoryPercentage: 0.88
       }]
     },
     options: {
@@ -691,17 +689,36 @@ function renderRiskChart(frames) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (context) => "Risk: " + context.raw
+            label: (context) => `Risk: ${context.raw}`
           }
         }
       },
       scales: {
-        x: { ticks: { color: "#64748b", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
-        y: { min: 0, max: 100, ticks: { color: "#64748b", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+        x: {
+          ticks: {
+            color: "#64748b",
+            font: { size: 10 },
+            maxRotation: 50,
+            minRotation: 50
+          },
+          grid: { display: false }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          ticks: {
+            color: "#64748b",
+            font: { size: 10 }
+          },
+          grid: {
+            color: "rgba(255,255,255,0.04)"
+          }
+        }
       }
     }
   });
 }
+
 
 function renderJointBars(frames) {
   const recent = frames.slice(-30);
