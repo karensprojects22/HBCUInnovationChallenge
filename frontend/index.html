@@ -311,7 +311,7 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
       </div>
       <h3 class="text-sm font-semibold text-slate-300">AI Movement Report</h3>
-      <span class="tag" style="background:rgba(34,211,238,0.12);color:#bae6fd;border:1px solid rgba(34,211,238,0.24)">Gemini coach summary</span>
+      <span class="tag" style="background:rgba(34,211,238,0.12);color:#bae6fd;border:1px solid rgba(34,211,238,0.24)">Powered by Gemini</span>
     </div>
     <p class="text-slate-500 text-xs uppercase tracking-wide mb-2">AI-accelerated coach interpretation</p>
     <p class="text-slate-300 leading-relaxed text-sm" id="aiReport">—</p>
@@ -361,15 +361,6 @@ function setBackendBadge(text, type) {
   badge.className = "tag " + (type === "high" ? "tag-high" : type === "moderate" ? "tag-moderate" : "tag-low");
 }
 
-async function checkBackend() {
-  try {
-    const response = await fetch(API_BASE + "/health", { method: "GET" });
-    if (!response.ok) throw new Error("Backend unreachable");
-    setBackendBadge("Backend online", "low");
-  } catch (error) {
-    setBackendBadge("Demo fallback mode", "moderate");
-  }
-}
 
 function handleFileSelect(input) {
   uploadedFile = input.files && input.files[0] ? input.files[0] : null;
