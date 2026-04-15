@@ -226,14 +226,10 @@
       <input type="file" id="fileInput" accept="video/*" class="hidden" onchange="handleFileSelect(this)"/>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 mobile-stack-2">
-      <button onclick="document.getElementById('fileInput').click()" id="uploadBtn"
+    <div class="grid grid-cols-1 gap-3">
+      <button onclick="handlePrimaryAction()" id="uploadBtn"
         class="py-3 rounded-xl font-semibold text-sm transition-all primary-btn">
         Upload Video
-      </button>
-      <button onclick="analyzeUpload()" id="analyzeBtn"
-        class="py-3 rounded-xl font-semibold text-sm transition-all secondary-btn" disabled>
-        Upload a Video to Continue
       </button>
     </div>
 
@@ -432,14 +428,22 @@ function updateFileLabel() {
 }
 
 function updateAnalyzeButtonState() {
-  const analyzeButton = document.getElementById("analyzeBtn");
+  const uploadButton = document.getElementById("uploadBtn");
   if (!uploadedFile) {
-    analyzeButton.disabled = true;
-    analyzeButton.textContent = "Upload a Video to Continue";
+    uploadButton.disabled = false;
+    uploadButton.textContent = "Upload Video";
     return;
   }
-  analyzeButton.disabled = false;
-  analyzeButton.textContent = "Analyze Athlete Motion";
+  uploadButton.disabled = false;
+  uploadButton.textContent = "Analyze Athlete Motion";
+}
+
+function handlePrimaryAction() {
+  if (!uploadedFile) {
+    document.getElementById("fileInput").click();
+    return;
+  }
+  analyzeUpload();
 }
 
 function sleep(ms) {
@@ -625,11 +629,8 @@ async function runAnalysis() {
 
 function setButtons(loading) {
   const uploadButton = document.getElementById("uploadBtn");
-  const analyzeButton = document.getElementById("analyzeBtn");
   uploadButton.disabled = loading;
-  analyzeButton.disabled = loading || !uploadedFile;
-  uploadButton.textContent = loading ? "Uploading..." : "Upload Video";
-  analyzeButton.textContent = loading ? "Analyzing..." : (uploadedFile ? "Analyze Athlete Motion" : "Upload a Video to Continue");
+  uploadButton.textContent = loading ? "Analyzing Athlete Motion..." : (uploadedFile ? "Analyze Athlete Motion" : "Upload Video");
 }
 
 function renderResults(data) {
