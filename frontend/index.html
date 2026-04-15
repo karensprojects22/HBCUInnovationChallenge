@@ -270,31 +270,13 @@
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#fbbf24"></span>Moderate</span>
         <span><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#fb7185"></span>High</span>
       </div>
-      <div class="mt-3 text-center text-xs text-slate-500">
-        Twin color changes with the current frame risk score: green means stable movement, yellow means moderate loading risk, and red marks the highest injury-risk frames.
-      </div>
     </div>
 
     <div class="card">
       <h3 class="text-sm font-semibold text-slate-300 mb-3">Risk Score Timeline</h3>
       <div style="height:220px">
         <canvas id="riskChart"></canvas>
-      </div>
-      <div class="mt-4 grid grid-cols-2 gap-3">
-        <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.04)">
-          <div class="text-slate-500 text-xs uppercase tracking-wide">Primary Risk Driver</div>
-          <div id="primaryDriver" class="text-sm font-semibold mt-2">Fatigue onset</div>
-          <div class="text-slate-500 text-xs mt-2">The main movement factor pushing the risk score upward.</div>
-        </div>
-        <div class="rounded-xl p-3" style="background:rgba(255,255,255,0.04)">
-          <div class="text-slate-500 text-xs uppercase tracking-wide">Coach Feedback</div>
-          <div id="coachAction" class="text-sm font-semibold mt-2">Monitor</div>
-          <div class="text-slate-500 text-xs mt-2">The intervention or guidance ATHLETIQ recommends to the coach.</div>
-        </div>
-      </div>
-      <div class="mt-3 rounded-xl p-3 text-sm text-slate-300" style="background:rgba(255,255,255,0.04)">
-        <span class="text-slate-500 text-xs uppercase tracking-wide block mb-2">Simulation</span>
-        <span id="simulationCallout">If sprint volume rises 20%, hamstring risk may increase materially.</span>
+      
       </div>
     </div>
   </div>
@@ -312,7 +294,6 @@
       <h3 class="text-sm font-semibold text-slate-300">AI Movement Report</h3>
       <span class="tag" style="background:rgba(34,211,238,0.12);color:#bae6fd;border:1px solid rgba(34,211,238,0.24)">Powered by Gemini</span>
     </div>
-    <p class="text-slate-500 text-xs uppercase tracking-wide mb-2">AI-accelerated coach interpretation</p>
     <p class="text-slate-300 leading-relaxed text-sm" id="aiReport">—</p>
   </div>
 
@@ -643,11 +624,6 @@ function updateNarrative(data) {
   if (data.alert_level === "HIGH") coachAction = "Reduce load + re-screen";
   else if (data.alert_level === "MODERATE") coachAction = "Correct mechanics before progression";
 
-  document.getElementById("primaryDriver").textContent = primaryDriver;
-  document.getElementById("coachAction").textContent = coachAction;
-  document.getElementById("simulationCallout").textContent = data.alert_level === "HIGH"
-    ? "If sprint volume rises 20%, hamstring risk likely climbs materially."
-    : "If workload increases, use the next session to check whether asymmetry worsens.";
 }
 
 function renderRiskChart(frames) {
