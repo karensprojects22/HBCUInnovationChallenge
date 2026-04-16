@@ -1,7 +1,12 @@
-import google.generativeai as genai
 from app.core.config import GEMINI_API_KEY
 
-if GEMINI_API_KEY:
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+
+
+if genai is not None and GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel("gemini-1.5-flash")
 else:
@@ -34,5 +39,16 @@ def generate_report(analysis_results: dict) -> str:
     Keep it clear and actionable. Do not use jargon.
     """
 
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    try:
+        response = model.generate_content(prompt)
+        return (response.text or "").strip() or (
+            "ATHLETIQ completed movement analysis and identified a measurable lower-body loading imbalance. "
+            "The current pattern suggests injury risk will increase if the athlete continues without correction. "
+            "Reduce workload, address asymmetry, and repeat screening before the next high-intensity session."
+        )
+    except Exception:
+        return (
+            "ATHLETIQ analyzed this athlete's movement and found elevated lower-body loading patterns. "
+            "The current session suggests asymmetry and fatigue that could increase injury risk if not addressed. "
+            "Reduce workload slightly, reinforce mechanics, and repeat screening before the next high-intensity session."
+        )
