@@ -137,13 +137,7 @@ async def analyze_video(video: UploadFile = File(...)):
         result["source"] = video.filename or "uploaded-video"
         result["uploaded_file"] = video.filename
         result["message"] = f"Processed analysis for {video.filename}"
-        result["ai_report"] = generate_ai_report(
-            result["peak_risk_score"],
-            result["average_risk_score"],
-            result["alert_level"],
-            result["high_risk_frame_count"],
-            result["total_frames_analyzed"],
-        )
+        result["ai_report"] = generate_report(result)
         return set_latest_analysis(result)
     except Exception as exc:
         fallback = build_demo_dataset(source_label=(video.filename or "uploaded-video") + " (demo fallback)")
