@@ -337,8 +337,19 @@ const API_BASE = window.location.origin;
 
 function setBackendBadge(text, type) {
   const badge = document.getElementById("backendStatus");
+  if (!badge) return;
   badge.textContent = text;
   badge.className = "tag " + (type === "high" ? "tag-high" : type === "moderate" ? "tag-moderate" : "tag-low");
+}
+
+async function checkBackend() {
+  try {
+    const response = await fetch(API_BASE + "/health", { method: "GET" });
+    if (!response.ok) throw new Error("Backend unreachable");
+    setBackendBadge("Backend online", "low");
+  } catch (error) {
+    setBackendBadge("Backend offline", "high");
+  }
 }
 
 
